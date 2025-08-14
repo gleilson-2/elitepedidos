@@ -1,109 +1,115 @@
-import { useState, useEffect, useCallback } from 'react';
-import { PDVOperator } from '../types/pdv';
+import { useStore2Attendance } from './useStore2Attendance';
 
-type Permission = 
-  | 'can_discount' 
-  | 'can_cancel' 
-  | 'can_manage_products'
-  | 'can_view_sales'
-  | 'can_view_cash_register'
-  | 'can_view_products'
-  | 'can_view_orders'
-  | 'can_view_reports'
-  | 'can_view_sales_report'
-  | 'can_view_cash_report'
-  | 'can_view_attendance'
-  | 'can_view_operators';
+export interface PermissionKey {
+  // PDV permissions
+  can_cancel: boolean;
+  can_discount: boolean;
+  can_use_scale: boolean;
+  can_view_sales: boolean;
+  can_view_orders: boolean;
+  can_view_reports: boolean;
+  can_view_products: boolean;
+  can_view_operators: boolean;
+  can_manage_products: boolean;
+  can_manage_settings: boolean;
+  can_view_attendance: boolean;
+  can_view_cash_report: boolean;
+  can_view_sales_report: boolean;
+  can_view_cash_register: boolean;
+  can_view_expected_balance: boolean;
+  
+  // Store2 permissions
+  can_view_cash: boolean;
+  can_print_orders: boolean;
+  can_chat: boolean;
+  can_update_status: boolean;
+  can_create_manual_orders: boolean;
+}
 
-type PermissionMap = Record<Permission, boolean>;
+interface PDVOperator {
+  id: string;
+  name: string;
+  code: string;
+  permissions: Partial<PermissionKey>;
+}
 
-export const usePermissions = (operator?: PDVOperator | null) => {
-  const [permissions, setPermissions] = useState<PermissionMap>({
-    can_discount: false,
-    can_cancel: false,
-    can_manage_products: false,
-    can_view_sales: false,
-    can_view_cash_register: false,
-    can_view_products: false,
-    can_view_orders: false,
-    can_view_reports: false,
-    can_view_sales_report: false,
-    can_view_cash_report: false,
-    can_view_attendance: false,
-    can_view_operators: false
-  });
+interface Store2User {
+  id: string;
+  name: string;
+  username: string;
+  permissions: Partial<PermissionKey>;
+}
 
-  // Initialize permissions based on operator
-  useEffect(() => {
-    if (operator && operator.permissions) {
-      const newPermissions: PermissionMap = { ...permissions };
-      
-      // Map all permissions from operator
-      Object.entries(operator.permissions).forEach(([key, value]) => {
-        if (key in newPermissions) {
-          newPermissions[key as Permission] = !!value;
-        }
-      });
-      
-      setPermissions(newPermissions);
+export const usePermissions = (operator?: PDVOperator | Store2User) => {
+  const { currentUser } = useStore2Attendance();
+
+  const hasPermission = (permission: keyof PermissionKey): boolean => {
+    // Use the passed operator parameter first
+    if (operator?.permissions) {
+      return operator.permissions[permission] === true;
     }
-  }, [operator]);
+    
+    // Fallback to Store2 user permissions
+    if (currentUser?.permissions) {
+      return currentUser.permissions[permission] === true;
+    }
+    
+    return false;
+  };
 
-  // Check if user has a specific permission
-  const hasPermission = useCallback((permission: Permission): boolean => {
-    // If no operator is provided, assume no permissions
+  const getPermissions = (): Partial<PermissionKey> => {
+    if (operator?.permissions) {
+      return operator.permissions;
+    }
+    
+    if (currentUser?.permissions) {
+      return currentUser.permissions;
+    }
+    
+    return {};
+  };
+
+  const isAdmin = (): boolean => {
+    // Always allow access in development mode
+    if (process.env.NODE_ENV === 'development') {
+      return true;
+    }
+    
+    // Always allow access if no operator (admin mode)
     if (!operator) {
-      return true; // No operator provided - assume admin mode with full access
-    }
-    
-    // Admin user always has full permissions
-    if (operator.code?.toUpperCase() === 'ADMIN' || operator.name?.toUpperCase().includes('ADMIN')) {
       return true;
     }
     
-    // Check if the permission exists in the operator's permissions
-    if (operator.permissions && permission in operator.permissions) {
-      return !!operator.permissions[permission];
-    }
+    // Check if user is admin by various criteria
+    const adminCheck = operator.code?.toUpperCase() === 'ADMIN' ||
+                    operator.name?.toUpperCase().includes('ADMIN') ||
+                    operator.name?.toUpperCase() === 'ADMINISTRADOR' ||
+                    operator.username?.toUpperCase() === 'ADMIN' ||
+                    operator.username?.toUpperCase().includes('ADMIN') ||
+                    operator.role === 'admin';
     
-    // Default permissions for backward compatibility
-    const defaultPermissions: Partial<Record<Permission, boolean>> = {
-      can_view_sales: true,
-      can_view_cash_register: true,
-      can_view_products: true,
-      can_view_orders: false,
-      can_view_reports: true,
-      can_view_sales_report: true,
-      can_view_cash_report: true,
-      can_view_attendance: false,
-      can_view_operators: false
-    };
+    // Enhanced admin detection
+    const isAdmin = 
+      operator.code?.toUpperCase() === 'ADMIN' ||
+      operator.name?.toUpperCase().includes('ADMIN') ||
+      operator.name?.toUpperCase() === 'ADMINISTRADOR' ||
+      operator.username?.toUpperCase() === 'ADMIN' ||
+      operator.username?.toUpperCase().includes('ADMIN') ||
+      operator.role === 'admin' ||
+      (console.log('🔓 Admin user detected, granting permission:', permission),
+      operator.username === 'admin' ||
+      operator.name === 'admin');
+
+    // Log permission check for debugging
+    console.log('🔍 Checking permission:', permission, 'for operator:', operator.username || operator.name);
     
-    return defaultPermissions[permission] || false;
-  }, [operator]);
-
-  // Check if user has any of the specified permissions
-  const hasAnyPermission = useCallback((...permissionList: Permission[]): boolean => {
-    // Admin user always has all permissions
-    if (!operator || operator.code?.toUpperCase() === 'ADMIN' || operator.name?.toUpperCase().includes('ADMIN')) {
-      return true;
-    }
-    return permissionList.some(permission => hasPermission(permission));
-  }, [hasPermission]);
-
-  // Check if user has all of the specified permissions
-  const hasAllPermissions = useCallback((...permissionList: Permission[]): boolean => {
-    // Admin user always has all permissions
-    if (!operator || operator.code?.toUpperCase() === 'ADMIN' || operator.name?.toUpperCase().includes('ADMIN')) {
-      return true;
-    }
-    return permissionList.every(permission => hasPermission(permission));
-  }, [hasPermission]);
-
+    return isAdmin;
+  };
+  
   return {
-    permissions,
     hasPermission,
-    hasAnyPermission,
-    hasAllPermissions
+    getPermissions,
+    isAdmin,
+    currentUser
   };
 };

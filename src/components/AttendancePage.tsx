@@ -11,7 +11,38 @@ const AttendancePage: React.FC = () => {
   // Se o atendente está logado, mostrar painel de atendimento
   if (session.isAuthenticated) {
     return (
-      <UnifiedAttendancePage />
+      <UnifiedAttendancePage 
+        operator={session.user ? {
+          id: session.user.id,
+          name: session.user.username,
+          username: session.user.username,
+          code: session.user.username.toUpperCase(),
+          role: session.user.role || 'admin',
+          permissions: {
+            can_discount: true,
+            can_cancel: true,
+            can_manage_products: true,
+            can_view_sales: true,
+            can_view_cash_register: true,
+            can_view_products: true,
+            can_view_orders: true,
+            can_view_reports: true,
+            can_view_sales_report: true,
+            can_view_cash_report: true,
+            can_view_operators: true,
+            can_view_attendance: true,
+            can_manage_settings: true,
+            can_use_scale: true,
+            can_view_expected_balance: true
+          },
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          password_hash: '',
+          last_login: null
+        } : undefined}
+        onLogout={logout}
+      />
     );
   }
 
