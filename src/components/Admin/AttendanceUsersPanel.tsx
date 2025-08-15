@@ -21,11 +21,21 @@ interface AttendanceUser {
 }
 
 const AttendanceUsersPanel: React.FC = () => {
-  const { users, loading, error, createUser, updateUser, deleteUser, fetchUsers } = useAttendance();
+  const { users, loading, error, createUser, updateUser, deleteUser } = useAttendance();
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUser, setEditingUser] = useState<AttendanceUser | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Force reload users when component mounts
+  React.useEffect(() => {
+    console.log('🔄 AttendanceUsersPanel montado, usuários atuais:', users.length);
+    if (users.length === 0 && !loading) {
+      console.log('⚠️ Nenhum usuário encontrado, tentando recarregar...');
+      // Force a page reload to reinitialize the hook
+      window.location.reload();
+    }
+  }, [users.length, loading]);
 
   const filteredUsers = searchTerm
     ? users.filter(user => 
@@ -91,11 +101,20 @@ const AttendanceUsersPanel: React.FC = () => {
     setSaving(true);
     
     try {
+      console.log('💾 Salvando usuário:', {
+        isCreating,
+        username: editingUser.username,
+        name: editingUser.name,
+        id: editingUser.id
+      });
+      
       if (isCreating) {
         const { id, created_at, updated_at, ...userData } = editingUser;
-        await createUser(userData);
+        const newUser = await createUser(userData);
+        console.log('✅ Usuário criado:', newUser);
       } else {
-        await updateUser(editingUser.id, editingUser);
+        const updatedUser = await updateUser(editingUser.id, editingUser);
+        console.log('✅ Usuário atualizado:', updatedUser);
       }
       
       setEditingUser(null);
@@ -117,9 +136,14 @@ const AttendanceUsersPanel: React.FC = () => {
           document.body.removeChild(successMessage);
         }
       }, 3000);
+      
+      // Force reload to ensure data is fresh
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (error) {
       console.error('Erro ao salvar usuário:', error);
-      alert('Erro ao salvar usuário');
+      alert(`Erro ao salvar usuário: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     } finally {
       setSaving(false);
     }
@@ -133,10 +157,17 @@ const AttendanceUsersPanel: React.FC = () => {
 
     if (confirm(`Tem certeza que deseja excluir o usuário "${name}"?`)) {
       try {
+        console.log('🗑️ Excluindo usuário:', { id, name });
         await deleteUser(id);
+        console.log('✅ Usuário excluído com sucesso');
+        
+        // Force reload to ensure data is fresh
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
       } catch (error) {
         console.error('Erro ao excluir usuário:', error);
-        alert('Erro ao excluir usuário');
+        alert(`Erro ao excluir usuário: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
       }
     }
   };
@@ -148,10 +179,17 @@ const AttendanceUsersPanel: React.FC = () => {
     }
 
     try {
+      console.log('🔄 Alterando status do usuário:', { id: user.id, currentStatus: user.is_active });
       await updateUser(user.id, { is_active: !user.is_active });
+      console.log('✅ Status alterado com sucesso');
+      
+      // Force reload to ensure data is fresh
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     } catch (error) {
       console.error('Erro ao alterar status:', error);
-      alert('Erro ao alterar status');
+      alert(`Erro ao alterar status: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     }
   };
 
@@ -164,12 +202,37 @@ const AttendanceUsersPanel: React.FC = () => {
     );
   }
 
+  // Debug information
+  console.log('👥 AttendanceUsersPanel render:', {
+    usersCount: users.length,
+    loading,
+    error,
+    filteredUsersCount: filteredUsers.length
+  });
+
   return (
     <div className="space-y-6">
       {/* Error Display */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-600">{error}</p>
+        </div>
+      )}
+      
+      {/* Debug Info */}
+      {users.length === 0 && !loading && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <p className="text-yellow-800 font-medium">Nenhum usuário encontrado</p>
+              <p className="text-yellow-700 text-sm">
+                Os usuários podem ter sido perdidos. Clique em "Novo Usuário" para criar o primeiro usuário.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
