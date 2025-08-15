@@ -316,6 +316,19 @@ const PDVSalesScreen: React.FC<PDVSalesScreenProps> = ({ operator, scaleHook, st
   };
 
   const handleConfirmSale = async () => {
+    // Validate operator before creating sale
+    if (!operator || !operator.id) {
+      console.error('❌ Operador não encontrado ou sem ID válido:', operator);
+      alert('Erro: Operador não identificado. Faça login novamente.');
+      return;
+    }
+
+    console.log('👤 Operador validado para venda:', {
+      id: operator.id,
+      name: operator.name,
+      code: operator.code
+    });
+
     if (!paymentInfo.method) {
       alert('Selecione uma forma de pagamento');
       return;
@@ -326,7 +339,7 @@ const PDVSalesScreen: React.FC<PDVSalesScreenProps> = ({ operator, scaleHook, st
     try {
       // Preparar dados da venda
       const saleData = {
-        operator_id: operator?.id,
+        operator_id: operator.id,
         customer_name: customerName || undefined,
         customer_phone: customerPhone || undefined,
         subtotal: getSubtotal(),
