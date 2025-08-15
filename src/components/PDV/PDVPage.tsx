@@ -18,6 +18,7 @@ import { useScale } from '../../hooks/useScale';
 import { usePDVCashRegister } from '../../hooks/usePDVCashRegister';
 import { useStoreHours } from '../../hooks/useStoreHours';
 import { PDVOperator } from '../../types/pdv';
+import { supabase } from '../../lib/supabase';
 import { 
   Calculator, 
   DollarSign, 
@@ -75,6 +76,34 @@ const PDVPage: React.FC = () => {
     setSupabaseConfigured(isConfigured);
   }, []);
 
+  // Validate stored operator ID on mount
+  React.useEffect(() => {
+    const validateStoredOperator = async () => {
+      if (!loggedInOperator?.id || !supabaseConfigured) {
+        return;
+      }
+
+      try {
+        const { data: operator, error } = await supabase
+          .from('pdv_operators')
+          .select('id')
+          .eq('id', loggedInOperator.id)
+          .single();
+
+        if (error || !operator) {
+          console.log('🔄 Operador não encontrado no banco, limpando localStorage');
+          localStorage.removeItem('pdv_operator');
+          setLoggedInOperator(null);
+        }
+      } catch (error) {
+        console.error('Erro ao validar operador:', error);
+        localStorage.removeItem('pdv_operator');
+        setLoggedInOperator(null);
+      }
+    };
+
+    validateStoredOperator();
+  }, [loggedInOperator?.id, supabaseConfigured]);
   const handleLogin = (operator: PDVOperator) => {
     console.log('✅ Login PDV bem-sucedido:', operator.name);
     setLoggedInOperator(operator);
