@@ -306,6 +306,24 @@ export const usePDVSales = () => {
 
   const cancelSale = useCallback(async (saleId: string, reason: string, operatorId: string) => {
     try {
+      console.log('🚀 Criando venda com dados:', saleData);
+      
+      // Validate operator_id if provided
+      if (saleData.operator_id) {
+        console.log('🔍 Verificando se operador existe:', saleData.operator_id);
+        const { data: operatorCheck, error: operatorError } = await supabase
+          .from('pdv_operators')
+          .select('id')
+          .eq('id', saleData.operator_id)
+          .single();
+          
+        if (operatorError || !operatorCheck) {
+          console.error('❌ Operador não encontrado:', { operator_id: saleData.operator_id, operatorError });
+          throw new Error(`Operador não encontrado: ${saleData.operator_id}`);
+        }
+        console.log('✅ Operador válido encontrado');
+      }
+      
       const { data, error } = await supabase
         .from('pdv_sales')
         .update({
@@ -319,8 +337,10 @@ export const usePDVSales = () => {
         .single();
 
       if (error) throw error;
+        console.error('❌ Erro ao inserir venda:', error);
       
       setSales(prev => prev.map(s => s.id === saleId ? data : s));
+      console.log('✅ Venda criada com sucesso:', data);
       return data;
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Erro ao cancelar venda');

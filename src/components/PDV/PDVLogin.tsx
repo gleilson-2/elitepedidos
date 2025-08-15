@@ -28,6 +28,8 @@ const PDVLogin: React.FC<PDVLoginProps> = ({ onLogin }) => {
     try {
       // Check for hardcoded admin credentials for demo purposes
       if (code.toUpperCase() === 'ADMIN' && password === 'elite2024') {
+        console.log('🔐 Tentando login com credenciais ADMIN...');
+        
         const { data, error } = await supabase
           .from('pdv_operators')
           .select('*')
@@ -35,6 +37,7 @@ const PDVLogin: React.FC<PDVLoginProps> = ({ onLogin }) => {
           .single();
         
         if (data) {
+          console.log('✅ Operador ADMIN encontrado:', data);
           // Login successful with hardcoded credentials
           await supabase
             .from('pdv_operators')
@@ -44,6 +47,7 @@ const PDVLogin: React.FC<PDVLoginProps> = ({ onLogin }) => {
           onLogin(data);
           return true;
         } else {
+          console.log('⚠️ Operador ADMIN não encontrado, tentando criar...');
           // Try to create admin user if it doesn't exist
           try {
             const { data: newAdmin, error: createError } = await supabase
@@ -64,7 +68,11 @@ const PDVLogin: React.FC<PDVLoginProps> = ({ onLogin }) => {
                   can_view_reports: true,
                   can_view_sales_report: true,
                   can_view_cash_report: true,
-                  can_view_operators: true
+                  can_view_operators: true,
+                  can_view_attendance: true,
+                  can_manage_settings: true,
+                  can_use_scale: true,
+                  can_view_expected_balance: true
                 }
               }])
               .select()
@@ -72,17 +80,18 @@ const PDVLogin: React.FC<PDVLoginProps> = ({ onLogin }) => {
               
             if (createError) {
               console.error('Error creating admin user:', createError);
-              setError('Erro ao criar usuário administrador');
+              setError(`Erro ao criar usuário administrador: ${createError.message}`);
               return false;
             }
             
             if (newAdmin) {
+              console.log('✅ Operador ADMIN criado com sucesso:', newAdmin);
               onLogin(newAdmin);
               return true;
             }
           } catch (createErr) {
             console.error('Error in admin creation:', createErr);
-            setError('Erro ao criar usuário administrador');
+            setError(`Erro ao criar usuário administrador: ${createErr instanceof Error ? createErr.message : 'Erro desconhecido'}`);
             return false;
           }
         }
@@ -98,26 +107,21 @@ const PDVLogin: React.FC<PDVLoginProps> = ({ onLogin }) => {
         .single();
 
       if (fetchError || !data) {
+        console.error('Operador não encontrado:', { code, fetchError });
         setError('Operador não encontrado ou inativo');
         setLoading(false);
         return;
       }
 
-      // Verificar senha
-      const { data: authData, error: authError } = await supabase.rpc(
-        'verify_operator_password',
-        {
-          operator_code: code.trim(),
-          password_to_check: password
-        }
-      );
-
-      // Check if authentication failed
-      if (authError || !authData) {
+      // Simple password verification for demo (in production, use proper hashing)
+      if (data.password_hash !== password) {
+        console.error('Senha incorreta para operador:', code);
         setError('Senha incorreta');
         setLoading(false);
         return;
       }
+      
+      console.log('✅ Login bem-sucedido para operador:', data);
 
       // Atualizar último login
       await supabase
@@ -130,7 +134,7 @@ const PDVLogin: React.FC<PDVLoginProps> = ({ onLogin }) => {
       return true;
     } catch (error) {
       console.error('Erro no login:', error);
-      setError('Erro ao fazer login. Tente novamente.');
+      setError(`Erro ao fazer login: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
       return false;
     } finally {
       setLoading(false);
