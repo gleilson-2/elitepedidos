@@ -216,6 +216,25 @@ export const usePDVSales = () => {
       
       setLoading(true);
 
+      // Validate operator_id before creating sale
+      if (!saleData.operator_id) {
+        throw new Error('operator_id é obrigatório para criar uma venda');
+      }
+
+      // Verify operator exists in database
+      const { data: operatorExists, error: operatorError } = await supabase
+        .from('pdv_operators')
+        .select('id')
+        .eq('id', saleData.operator_id)
+        .single();
+
+      if (operatorError || !operatorExists) {
+        console.error('❌ Operador não encontrado no banco:', saleData.operator_id);
+        throw new Error(`Operador não encontrado no banco de dados: ${saleData.operator_id}`);
+      }
+
+      console.log('✅ Operador validado no banco:', operatorExists.id);
+
       // Set channel to pdv if not specified
       const saleWithChannel = {
         ...saleData,

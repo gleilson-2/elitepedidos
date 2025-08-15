@@ -38,6 +38,15 @@ const PDVLogin: React.FC<PDVLoginProps> = ({ onLogin }) => {
         
         if (data) {
           console.log('✅ Operador ADMIN encontrado:', data);
+          
+          // Ensure the operator has a valid ID
+          if (!data.id) {
+            console.error('❌ Operador ADMIN sem ID válido:', data);
+            setError('Erro: Operador sem ID válido');
+            setLoading(false);
+            return false;
+          }
+          
           // Login successful with hardcoded credentials
           await supabase
             .from('pdv_operators')
@@ -86,6 +95,14 @@ const PDVLogin: React.FC<PDVLoginProps> = ({ onLogin }) => {
             
             if (newAdmin) {
               console.log('✅ Operador ADMIN criado com sucesso:', newAdmin);
+              
+              // Ensure the new operator has a valid ID
+              if (!newAdmin.id) {
+                console.error('❌ Novo operador ADMIN criado sem ID válido:', newAdmin);
+                setError('Erro: Operador criado sem ID válido');
+                return false;
+              }
+              
               onLogin(newAdmin);
               return true;
             }
@@ -122,6 +139,14 @@ const PDVLogin: React.FC<PDVLoginProps> = ({ onLogin }) => {
       }
       
       console.log('✅ Login bem-sucedido para operador:', data);
+      
+      // Final validation of operator ID
+      if (!data.id) {
+        console.error('❌ Operador sem ID válido após login:', data);
+        setError('Erro: Operador sem ID válido');
+        setLoading(false);
+        return false;
+      }
 
       // Atualizar último login
       await supabase
